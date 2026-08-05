@@ -500,7 +500,7 @@
       allEntries = data.entries || [];
       renderHistory();
     } catch (err) {
-      list.innerHTML = '<div class="empty-state">Impossible de charger l\\'historique.</div>';
+      list.innerHTML = '<div class="empty-state">Impossible de charger l\'historique.</div>';
     }
   }
 
@@ -515,7 +515,7 @@
   function renderHistory() {
     const list = document.getElementById('history-list');
     if (allEntries.length === 0) {
-      list.innerHTML = '<div class="empty-state">Aucune journée enregistrée pour l\\'instant.</div>';
+      list.innerHTML = '<div class="empty-state">Aucune journée enregistrée pour l\'instant.</div>';
       document.getElementById('week-total').textContent = '0h00';
       document.getElementById('month-total').textContent = '0h00';
       return;
