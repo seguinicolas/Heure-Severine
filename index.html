@@ -202,7 +202,7 @@
 
   .summary-row {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 16px;
   }
 
@@ -211,12 +211,12 @@
     background: var(--surface);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 14px;
+    padding: 12px 6px;
     text-align: center;
   }
 
   .summary-card .label {
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--ink-muted);
@@ -225,10 +225,21 @@
 
   .summary-card .value {
     font-family: 'Fraunces', serif;
-    font-size: 24px;
+    font-size: 19px;
     font-weight: 600;
     color: var(--ink);
     margin-top: 4px;
+  }
+
+  select#month-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--line);
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    background: #fbfcfb;
   }
 
   .day-card { cursor: pointer; }
@@ -351,13 +362,21 @@
   <section id="tab-historique" class="hidden">
     <div class="summary-row">
       <div class="summary-card">
-        <div class="label">Cette semaine</div>
+        <div class="label">Semaine</div>
         <div class="value" id="week-total">–</div>
       </div>
       <div class="summary-card">
-        <div class="label">Ce mois</div>
+        <div class="label">Mois</div>
         <div class="value" id="month-total">–</div>
       </div>
+      <div class="summary-card">
+        <div class="label">Année</div>
+        <div class="value" id="year-total">–</div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="month-select">Afficher le mois</label>
+      <select id="month-select" onchange="onMonthChange()"></select>
     </div>
     <div id="history-list"></div>
   </section>
@@ -369,6 +388,7 @@
 
   let creneauCount = 0;
   let allEntries = [];
+  let byDateGlobal = {};
 
   function todayISO() {
     const d = new Date();
@@ -512,14 +532,34 @@
     return date.getFullYear() + '-' + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7 + 1);
   }
 
+  function normalizeDate(value) {
+    // Rend robuste le format de date renvoyé par le Sheet (yyyy-MM-dd attendu,
+    // mais parfois une chaîne plus longue ou un format inattendu peut arriver)
+    if (!value) return '';
+    const str = String(value);
+    const match = str.match(/^\d{4}-\d{2}-\d{2}/);
+    return match ? match[0] : str;
+  }
+
+  function onMonthChange() {
+    const select = document.getElementById('month-select');
+    renderDayList(byDateGlobal, select.value);
+  }
+
   function renderHistory() {
     const list = document.getElementById('history-list');
+    const monthSelect = document.getElementById('month-select');
+
     if (allEntries.length === 0) {
       list.innerHTML = '<div class="empty-state">Aucune journée enregistrée pour l\'instant.</div>';
       document.getElementById('week-total').textContent = '0h00';
       document.getElementById('month-total').textContent = '0h00';
+      document.getElementById('year-total').textContent = '0h00';
+      monthSelect.innerHTML = '';
       return;
     }
+
+    allEntries.forEach(e => { e.date = normalizeDate(e.date); });
 
     // Regrouper par date
     const byDate = {};
@@ -527,22 +567,55 @@
       if (!byDate[e.date]) byDate[e.date] = [];
       byDate[e.date].push(e);
     });
-
-    const dates = Object.keys(byDate).sort().reverse();
+    byDateGlobal = byDate;
 
     const now = new Date();
     const currentWeek = getWeekNumber(now);
     const currentMonth = now.toISOString().slice(0, 7);
+    const currentYear = String(now.getFullYear());
 
-    let weekTotal = 0, monthTotal = 0;
+    let weekTotal = 0, monthTotal = 0, yearTotal = 0;
     allEntries.forEach(e => {
       const d = parseFloat(e.duree) || 0;
       if (getWeekNumber(e.date) === currentWeek) weekTotal += d;
       if (e.date.slice(0, 7) === currentMonth) monthTotal += d;
+      if (e.date.slice(0, 4) === currentYear) yearTotal += d;
     });
 
     document.getElementById('week-total').textContent = formatHours(weekTotal);
     document.getElementById('month-total').textContent = formatHours(monthTotal);
+    document.getElementById('year-total').textContent = formatHours(yearTotal);
+
+    // Construire le sélecteur de mois
+    const months = [...new Set(Object.keys(byDate).map(d => d.slice(0, 7)))].sort().reverse();
+    const previousSelection = monthSelect.value;
+    monthSelect.innerHTML = '';
+    months.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      const label = new Date(m + '-01T00:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      opt.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+      monthSelect.appendChild(opt);
+    });
+    const selectedMonth = months.includes(previousSelection)
+      ? previousSelection
+      : (months.includes(currentMonth) ? currentMonth : months[0]);
+    monthSelect.value = selectedMonth;
+
+    renderDayList(byDate, selectedMonth);
+  }
+
+  function renderDayList(byDate, selectedMonth) {
+    const list = document.getElementById('history-list');
+    const dates = Object.keys(byDate)
+      .filter(d => d.slice(0, 7) === selectedMonth)
+      .sort()
+      .reverse();
+
+    if (dates.length === 0) {
+      list.innerHTML = '<div class="empty-state">Aucune journée enregistrée ce mois-ci.</div>';
+      return;
+    }
 
     list.innerHTML = '';
     dates.forEach((date, idx) => {
