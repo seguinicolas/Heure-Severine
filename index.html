@@ -541,6 +541,20 @@
     return match ? match[0] : str;
   }
 
+  function normalizeTime(value) {
+    // Rend robuste le format d'heure renvoyé par le Sheet. Une cellule "heure"
+    // ressort d'Apps Script sous forme de Date, sérialisée en JSON comme
+    // "1899-12-30T08:50:39.000Z" au lieu de la simple chaîne "08:50" attendue.
+    // On extrait uniquement les heures/minutes, quel que soit le format reçu.
+    if (!value) return '';
+    const str = String(value);
+    const simple = str.match(/^(\d{2}:\d{2})/);
+    if (simple) return simple[1];
+    const iso = str.match(/T(\d{2}):(\d{2})/);
+    if (iso) return iso[1] + ':' + iso[2];
+    return str;
+  }
+
   function onMonthChange() {
     const select = document.getElementById('month-select');
     renderDayList(byDateGlobal, select.value);
@@ -559,7 +573,11 @@
       return;
     }
 
-    allEntries.forEach(e => { e.date = normalizeDate(e.date); });
+    allEntries.forEach(e => {
+      e.date = normalizeDate(e.date);
+      e.debut = normalizeTime(e.debut);
+      e.fin = normalizeTime(e.fin);
+    });
 
     // Regrouper par date
     const byDate = {};
