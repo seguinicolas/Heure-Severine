@@ -634,9 +634,21 @@
     return str;
   }
 
+  // Total du mois sélectionné (carré « Mois » de l'onglet Historique)
+  function updateMonthTotal(selectedMonth) {
+    let monthTotal = 0;
+    allEntries.forEach(e => {
+      if (e.date.slice(0, 7) === selectedMonth) {
+        monthTotal += parseFloat(e.duree) || 0;
+      }
+    });
+    document.getElementById('month-total').textContent = formatHours(monthTotal);
+  }
+
   function onMonthChange() {
     const select = document.getElementById('month-select');
     renderDayList(byDateGlobal, select.value);
+    updateMonthTotal(select.value);
   }
 
   function renderHistory() {
@@ -671,16 +683,15 @@
     const currentMonth = now.toISOString().slice(0, 7);
     const currentYear = String(now.getFullYear());
 
-    let weekTotal = 0, monthTotal = 0, yearTotal = 0;
+    // Semaine et année : toujours basées sur aujourd'hui
+    let weekTotal = 0, yearTotal = 0;
     allEntries.forEach(e => {
       const d = parseFloat(e.duree) || 0;
       if (getWeekNumber(e.date) === currentWeek) weekTotal += d;
-      if (e.date.slice(0, 7) === currentMonth) monthTotal += d;
       if (e.date.slice(0, 4) === currentYear) yearTotal += d;
     });
 
     document.getElementById('week-total').textContent = formatHours(weekTotal);
-    document.getElementById('month-total').textContent = formatHours(monthTotal);
     document.getElementById('year-total').textContent = formatHours(yearTotal);
 
     // Construire le sélecteur de mois
@@ -699,6 +710,8 @@
       : (months.includes(currentMonth) ? currentMonth : months[0]);
     monthSelect.value = selectedMonth;
 
+    // Mois : suit le mois sélectionné dans le sélecteur
+    updateMonthTotal(selectedMonth);
     renderDayList(byDate, selectedMonth);
   }
 
